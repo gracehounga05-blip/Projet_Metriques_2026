@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Atelier — Vent Marseille</title>
+  <script src="https://www.gstatic.com/charts/loader.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@700&family=DM+Sans:wght@300;400&display=swap" rel="stylesheet"/>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #0a0a0a;
+      color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+    }
+    h1 {
+      font-family: 'Space Mono', monospace;
+      font-size: 2rem;
+      background: linear-gradient(90deg, #f97316, #ef4444);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    .subtitle { color: #666; font-size: 14px; margin-bottom: 40px; letter-spacing: 2px; text-transform: uppercase; text-align: center; }
+    .gauges { display: flex; gap: 32px; flex-wrap: wrap; justify-content: center; }
+    .gauge-box {
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 20px;
+      padding: 28px 32px;
+      text-align: center;
+      min-width: 220px;
+      box-shadow: 0 8px 40px rgba(249,115,22,0.08);
+    }
+    .gauge-label { font-size: 13px; color: #f97316; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px; font-weight: 500; }
+    .gauge-value { font-family: 'Space Mono', monospace; font-size: 2rem; color: #fff; margin-top: 8px; }
+    .gauge-unit { font-size: 13px; color: #555; margin-top: 4px; }
+    #status { margin-top: 32px; color: #444; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1>🌬️ Vent en temps réel</h1>
+  <p class="subtitle">Marseille — Prévisions 7 jours</p>
+
+  <div class="gauges">
+    <div class="gauge-box">
+      <div class="gauge-label">Vitesse actuelle</div>
+      <div id="gauge_now"></div>
+      <div id="val_now" class="gauge-value">—</div>
+      <div class="gauge-unit">km/h</div>
+    </div>
+    <div class="gauge-box">
+      <div class="gauge-label">Vitesse max 7j</div>
+      <div id="gauge_max"></div>
+      <div id="val_max" class="gauge-value">—</div>
+      <div class="gauge-unit">km/h</div>
+    </div>
+    <div class="gauge-box">
+      <div class="gauge-label">Moyenne 7j</div>
+      <div id="gauge_avg"></div>
+      <div id="val_avg" class="gauge-value">—</div>
+      <div class="gauge-unit">km/h</div>
+    </div>
+  </div>
+
+  <div id="status">Chargement des données...</div>
+
+  <script>
+    google.charts.load('current', { packages: ['gauge'] });
+    google.charts.setOnLoadCallback(init);
+
+    async function init() {
+      try {
+        const res = await fetch('/vent_marseille');
+        const json = await res.json();
+        const speeds = json.map(p => p.wind_speed_kmh).filter(v => v !== null);
+
+        const now = speeds[0] ?? 0;
+        const max = Math.max(...speeds);
+        const avg = Math.round(speeds.reduce((a, b) => a + b, 0) / speeds.length);
+
+        drawGauge('gauge_now', 'val_now', now, 120);
+        drawGauge('gauge_max', 'val_max', max, 120);
+        drawGauge('gauge_avg', 'val_avg', avg, 120);
+
+        document.getElementById('status').textContent = `✅ ${speeds.length} relevés chargés depuis /vent_marseille`;
+      } catch (err) {
+        document.getElementById('status').textContent = 'Erreur : ' + err.message;
+      }
+    }
+
+    function drawGauge(containerId, valueId, value, maxVal) {
+      document.getElementById(valueId).textContent = Math.round(value);
+
+      const data = google.visualization.arrayToDataTable([
+        ['Label', 'Value'],
+        ['km/h', Math.round(value)]
+      ]);
+
+      const options = {
+        width: 180, height: 150,
+        redFrom: 80, redTo: maxVal,
+        yellowFrom: 40, yellowTo: 80,
+        greenFrom: 0, greenTo: 40,
+        max: maxVal,
+        minorTicks: 5
+      };
+
+      const chart = new google.visualization.Gauge(document.getElementById(containerId));
+      chart.draw(data, options);
+    }
+  </script>
+</body>
+</html>
